@@ -48,9 +48,13 @@ func Part1(input Input) string {
 
 func Part2(input Input) string {
 	start := findStart(input)
-	l, r := 0, 0
 	p := start
 	c, _ := getStartPositions(p, input)
+	l, r, circleMap := lrCount(start, c, input)
+	innerMap := make(map[Pos]bool)
+	circleMap[p] = true
+
+	isLeft := l > r
 	for i:= 0;;i++ {
 		n1, n2 := getPosChange(c, input[c.y][c.x])
 		var n Pos
@@ -59,18 +63,103 @@ func Part2(input Input) string {
 		} else {
 			n = n2
 		}
-		
+
+		var pIn, cIn Pos
+		if !isLeft {
+			if p.x - c.x == 1 {
+				pIn = Pos{p.x, p.y - 1}
+				cIn = Pos{c.x, c.y - 1}
+			}
+			if p.x - c.x == -1 {
+				pIn = Pos{p.x, p.y + 1}
+				cIn = Pos{c.x, c.y + 1}
+			}
+			if p.y - c.y == 1 {
+				pIn = Pos{p.x + 1, p.y}
+				cIn = Pos{c.x + 1, c.y}
+			}
+			if p.y - c.y == -1 {
+				pIn = Pos{p.x - 1, p.y}
+				cIn = Pos{c.x - 1, c.y}
+			}
+		} else {
+			if p.x - c.x == 1 {
+				pIn = Pos{p.x, p.y + 1}
+				cIn = Pos{c.x, c.y + 1}
+			}
+			if p.x - c.x == -1 {
+				pIn = Pos{p.x, p.y - 1}
+				cIn = Pos{c.x, c.y - 1}
+			}
+			if p.y - c.y == 1 {
+				pIn = Pos{p.x - 1, p.y}
+				cIn = Pos{c.x - 1, c.y}
+			}
+			if p.y - c.y == -1 {
+				pIn = Pos{p.x + 1, p.y}
+				cIn = Pos{c.x + 1, c.y}
+			}
+		}
+		if !circleMap[pIn] {
+			innerMap[pIn] = true
+		}
+		if !circleMap[cIn] {
+			innerMap[cIn] = true
+		}
+		p, c = c, n
+		if c == start {
+			break
+		}
+	}
+
+	lis := make([]Pos, 0)
+	for key, _ := range innerMap {
+		lis = append(lis, key)
+	}
+	for len(lis) > 0 {
+		it := lis[0]
+		lis = lis[1:]
+		up := Pos{it.x - 1, it.y}
+		down := Pos{it.x + 1, it.y}
+		left := Pos{it.x, it.y - 1}
+		right := Pos{it.x, it.y + 1}
+
+		for _, val := range []Pos{up, down, left, right} {
+			if !circleMap[val] && !innerMap[val] {
+				innerMap[val] = true
+				lis = append(lis, val)
+			}
+		}
+	}
+	return strconv.Itoa(len(innerMap))
+}
+
+func lrCount(start, next Pos, input Input) (int, int, map[Pos]bool)  {
+	l, r := 0, 0
+	p, c := start, next
+	circleMap := make(map[Pos]bool)
+	circleMap[p] = true
+
+
+	for i:= 0;;i++ {
+		n1, n2 := getPosChange(c, input[c.y][c.x])
+		var n Pos
+		if n2 == p {
+			n = n1
+		} else {
+			n = n2
+		}
+
 		rl := rorl(p, c, n)
 		if rl == "l" {
 			l++
 		} else if rl == "r" {
 			r++
 		}
-		
+		circleMap[c] = true
 		p, c = c, n
 		if c == start {
-			fmt.Printf("l: %d, r: %d\n", l, r)
-			return  strconv.Itoa((i / 2) + 1) 
+			return l, r, circleMap
 		}
 	}
 }
@@ -112,6 +201,9 @@ func getStartPositions(startPos Pos, input Input) (Pos, Pos) {
 	res := make([]Pos, 0)
 	for _, shift := range shifts {
 		next := Pos{x: startPos.x + shift.x, y: startPos.y + shift.y}
+		if next.x < 0 || next.y < 0 || next.x >= len(input[0]) || next.y >= len(input) {
+			continue
+		}
 		a,b := getPosChange(next, input[next.y][next.x])
 		if a == startPos || b == startPos{
 			res = append(res, next)
